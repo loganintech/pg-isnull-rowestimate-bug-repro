@@ -11,19 +11,66 @@ counts when a query repeats an identical predicate. It:
    (Q1 has none, Q5 has four).
 4. Prints the plan tree per query plus a summary of the **estimated** rows.
 
-## The result
+## Results
 
 Postgres does **not** deduplicate identical predicates — each repeated
 `deleted_at IS NULL` is treated as independent, so the estimate roughly halves
-each time, even though all five queries match the same 50,000 rows:
+each time, even though all five queries match the same 50,000 rows.
 
-| Query | `IS NULL` clauses | Estimated rows |
-|------:|------------------:|---------------:|
-| 1 | 0 | 100000 |
-| 2 | 1 | ~50000 |
-| 3 | 2 | ~25000 |
-| 4 | 3 | ~12500 |
-| 5 | 4 | ~6250 |
+Measured on a sample run against PostgreSQL 18.4 (see `results.log`):
+
+| Query | `IS NULL` clauses | Estimated rows (scan node) | Actual matched* | Ratio vs. prev. |
+|------:|------------------:|---------------------------:|----------------:|----------------:|
+| 1 | 0 | 100000 | 100 | — |
+| 2 | 1 | 49847 | 100 | 0.50× |
+| 3 | 2 | 24847 | 100 | 0.50× |
+| 4 | 3 | 12385 | 100 | 0.50× |
+| 5 | 4 | 6174 | 100 | 0.50× |
+
+\* `Actual matched` is capped at 100 because `LIMIT 100` stops the scan early; the
+true match count is 50,000 for every query.
+
+<details>
+<summary>Full run output (<code>results.log</code>)</summary>
+
+For each query the program prints the SQL, the exact `EXPLAIN` statement sent
+(with `--raw`), the raw JSON plan, and the summarized plan tree. The
+distinguishing lines from each query's `Seq Scan` node:
+
+```
+Query 1 — WHERE (none)
+  Filter:    (none)
+  Plan Rows: 100000
+
+Query 2 — WHERE deleted_at IS NULL
+  Filter:    (deleted_at IS NULL)
+  Plan Rows: 49847
+
+Query 3 — WHERE deleted_at IS NULL AND deleted_at IS NULL
+  Filter:    ((deleted_at IS NULL) AND (deleted_at IS NULL))
+  Plan Rows: 24847
+
+Query 4 — WHERE deleted_at IS NULL AND deleted_at IS NULL AND deleted_at IS NULL
+  Filter:    ((deleted_at IS NULL) AND (deleted_at IS NULL) AND (deleted_at IS NULL))
+  Plan Rows: 12385
+
+Query 5 — WHERE deleted_at IS NULL AND deleted_at IS NULL AND deleted_at IS NULL AND deleted_at IS NULL
+  Filter:    ((deleted_at IS NULL) AND (deleted_at IS NULL) AND (deleted_at IS NULL) AND (deleted_at IS NULL))
+  Plan Rows: 6174
+```
+
+Program summary table:
+
+```
+Query    IS NULL clauses  Estimated rows   Actual matched
+1        0                100000           100
+2        1                49847            100
+3        2                24847            100
+4        3                12385            100
+5        4                6174             100
+```
+
+</details>
 
 ## Prerequisites
 
