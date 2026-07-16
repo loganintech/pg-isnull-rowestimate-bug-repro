@@ -271,8 +271,14 @@ func runExplainQueries(ctx context.Context, conn *pgx.Conn, rawOutput bool) erro
 	fmt.Printf("%-8s %-16s %-16s %-16s %-20s\n", "Query", "IS NULL clauses", "Estimated rows", "Actual matched", "Underestimate scale")
 	for _, s := range summaries {
 		underestimate := "n/a"
+		// Only report a scale where the planner genuinely underestimates;
+		// estimates within ANALYZE sampling noise of the actual are accurate.
 		if s.scanEst > 0 {
-			underestimate = fmt.Sprintf("%.1fx", s.scanActual/s.scanEst)
+			if ratio := s.scanActual / s.scanEst; ratio > 1.05 {
+				underestimate = fmt.Sprintf("%.1fx", ratio)
+			} else {
+				underestimate = "- (accurate)"
+			}
 		}
 		fmt.Printf("%-8d %-16d %-16.0f %-16.0f %-20s\n", s.q, s.clauses, s.scanEst, s.scanActual, underestimate)
 	}

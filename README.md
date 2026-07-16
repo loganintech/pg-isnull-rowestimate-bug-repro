@@ -20,15 +20,19 @@ each time, even though all five queries match the same 50,000 rows.
 Measured on a sample run against PostgreSQL 18.4 (see `results.log`). The
 queries run without a `LIMIT`, so `Actual matched` is the true count of matching
 rows — identical (50,000) for every filtered query, while the **estimate** keeps
-halving. `Underestimate scale` is `Actual matched ÷ Estimated rows`:
+halving. `Underestimate scale` is `Actual matched ÷ Estimated rows`, shown only
+where the planner actually underestimates: Query 1 has no filter and Query 2's
+estimate is essentially exact (50,017 vs. 50,000 — sampling noise, and slightly
+*over*), so the compounding error only begins with the first duplicate clause
+in Query 3:
 
 | Query | `IS NULL` clauses | Estimated rows (scan node) | Actual matched | Underestimate scale | Ratio vs. prev. |
 |------:|------------------:|---------------------------:|---------------:|--------------------:|----------------:|
-| 1 | 0 | 100000 | 100000 | 1.0× | — |
-| 2 | 1 | 50090 | 50000 | 1.0× | 0.50× |
-| 3 | 2 | 25090 | 50000 | 2.0× | 0.50× |
-| 4 | 3 | 12568 | 50000 | 4.0× | 0.50× |
-| 5 | 4 | 6295 | 50000 | 7.9× | 0.50× |
+| 1 | 0 | 100000 | 100000 | — (exact) | — |
+| 2 | 1 | 50017 | 50000 | — (accurate) | 0.50× |
+| 3 | 2 | 25017 | 50000 | 2.0× | 0.50× |
+| 4 | 3 | 12513 | 50000 | 4.0× | 0.50× |
+| 5 | 4 | 6258 | 50000 | 8.0× | 0.50× |
 
 By Query 5, repeating a predicate that changes nothing makes the planner
 underestimate the result by ~8×. (Exact estimates shift slightly between runs
@@ -48,30 +52,30 @@ Query 1 — WHERE (none)
 
 Query 2 — WHERE deleted_at IS NULL
   Filter:    (deleted_at IS NULL)
-  Plan Rows: 50090    Actual Rows: 50000
+  Plan Rows: 50017    Actual Rows: 50000
 
 Query 3 — WHERE deleted_at IS NULL AND deleted_at IS NULL
   Filter:    ((deleted_at IS NULL) AND (deleted_at IS NULL))
-  Plan Rows: 25090    Actual Rows: 50000
+  Plan Rows: 25017    Actual Rows: 50000
 
 Query 4 — WHERE deleted_at IS NULL AND deleted_at IS NULL AND deleted_at IS NULL
   Filter:    ((deleted_at IS NULL) AND (deleted_at IS NULL) AND (deleted_at IS NULL))
-  Plan Rows: 12568    Actual Rows: 50000
+  Plan Rows: 12513    Actual Rows: 50000
 
 Query 5 — WHERE deleted_at IS NULL AND deleted_at IS NULL AND deleted_at IS NULL AND deleted_at IS NULL
   Filter:    ((deleted_at IS NULL) AND (deleted_at IS NULL) AND (deleted_at IS NULL) AND (deleted_at IS NULL))
-  Plan Rows: 6295     Actual Rows: 50000
+  Plan Rows: 6258     Actual Rows: 50000
 ```
 
 Program summary table:
 
 ```
 Query    IS NULL clauses  Estimated rows   Actual matched   Underestimate scale
-1        0                100000           100000           1.0x
-2        1                50090            50000            1.0x
-3        2                25090            50000            2.0x
-4        3                12568            50000            4.0x
-5        4                6295             50000            7.9x
+1        0                100000           100000           - (accurate)
+2        1                50017            50000            - (accurate)
+3        2                25017            50000            2.0x
+4        3                12513            50000            4.0x
+5        4                6258             50000            8.0x
 ```
 
 </details>
