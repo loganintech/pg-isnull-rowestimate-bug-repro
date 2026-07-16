@@ -51,6 +51,15 @@ Without Nix:
 go run .
 ```
 
+## Flags
+
+- `--raw` — for each query, also print the exact `EXPLAIN` statement sent and the
+  full raw JSON response before the summarized plan tree:
+
+  ```sh
+  go run . --raw      # or: nix run . -- --raw
+  ```
+
 ## Notes
 
 - The per-query `actual.rows=100` reflects the `LIMIT 100` stopping the scan

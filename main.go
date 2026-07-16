@@ -6,8 +6,10 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"os/exec"
@@ -26,12 +28,15 @@ const (
 )
 
 func main() {
-	if err := run(); err != nil {
+	rawOutput := flag.Bool("raw", false, "print the raw EXPLAIN statement sent and the raw JSON returned for each query")
+	flag.Parse()
+
+	if err := run(*rawOutput); err != nil {
 		log.Fatalf("error: %v", err)
 	}
 }
 
-func run() error {
+func run(rawOutput bool) error {
 	ctx := context.Background()
 
 	if err := startPostgres(ctx); err != nil {
@@ -55,7 +60,7 @@ func run() error {
 		return fmt.Errorf("load data: %w", err)
 	}
 
-	if err := runExplainQueries(ctx, conn); err != nil {
+	if err := runExplainQueries(ctx, conn, rawOutput); err != nil {
 		return fmt.Errorf("explain queries: %w", err)
 	}
 
@@ -180,6 +185,16 @@ func firstScan(n planNode) *planNode {
 	return nil
 }
 
+// indentJSON pretty-prints raw JSON, falling back to the original bytes if it
+// cannot be parsed.
+func indentJSON(raw []byte) string {
+	var buf bytes.Buffer
+	if err := json.Indent(&buf, raw, "", "  "); err != nil {
+		return string(raw)
+	}
+	return buf.String()
+}
+
 func printTree(n planNode, depth int) {
 	indent := ""
 	for i := 0; i < depth; i++ {
@@ -192,7 +207,9 @@ func printTree(n planNode, depth int) {
 }
 
 // runExplainQueries builds the five queries and runs each under EXPLAIN ANALYZE.
-func runExplainQueries(ctx context.Context, conn *pgx.Conn) error {
+// When rawOutput is true, the exact statement sent and the raw JSON returned are
+// printed for each query.
+func runExplainQueries(ctx context.Context, conn *pgx.Conn, rawOutput bool) error {
 	fmt.Println()
 	fmt.Println("=========================================================================")
 	fmt.Println(" EXPLAIN ANALYZE — estimated rows vs. number of duplicate IS NULL clauses")
@@ -218,9 +235,10 @@ func runExplainQueries(ctx context.Context, conn *pgx.Conn) error {
 			}
 		}
 		query := fmt.Sprintf("SELECT id, deleted_at FROM records%s LIMIT 100", where)
+		statement := "EXPLAIN (ANALYZE, FORMAT JSON) " + query
 
 		var raw []byte
-		err := conn.QueryRow(ctx, "EXPLAIN (ANALYZE, FORMAT JSON) "+query).Scan(&raw)
+		err := conn.QueryRow(ctx, statement).Scan(&raw)
 		if err != nil {
 			return fmt.Errorf("query %d: %w", q, err)
 		}
@@ -232,6 +250,10 @@ func runExplainQueries(ctx context.Context, conn *pgx.Conn) error {
 
 		fmt.Printf("\n--- Query %d — %d duplicate `deleted_at IS NULL` clause(s) ---\n", q, clauses)
 		fmt.Printf("SQL: %s\n", query)
+		if rawOutput {
+			fmt.Printf("RAW statement sent:\n  %s\n", statement)
+			fmt.Printf("RAW EXPLAIN response:\n%s\n", indentJSON(raw))
+		}
 		printTree(roots[0].Plan, 0)
 
 		s := summary{q: q, clauses: clauses, sql: query}

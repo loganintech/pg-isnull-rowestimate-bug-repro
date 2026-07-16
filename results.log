@@ -1,0 +1,423 @@
+
+=========================================================================
+ EXPLAIN ANALYZE — estimated rows vs. number of duplicate IS NULL clauses
+=========================================================================
+
+--- Query 1 — 0 duplicate `deleted_at IS NULL` clause(s) ---
+SQL: SELECT id, deleted_at FROM records LIMIT 100
+RAW statement sent:
+  EXPLAIN (ANALYZE, FORMAT JSON) SELECT id, deleted_at FROM records LIMIT 100
+RAW EXPLAIN response:
+[
+  {
+    "Plan": {
+      "Node Type": "Limit",
+      "Parallel Aware": false,
+      "Async Capable": false,
+      "Startup Cost": 0.00,
+      "Total Cost": 1.83,
+      "Plan Rows": 100,
+      "Plan Width": 35,
+      "Actual Startup Time": 0.005,
+      "Actual Total Time": 0.010,
+      "Actual Rows": 100.00,
+      "Actual Loops": 1,
+      "Disabled": false,
+      "Shared Hit Blocks": 2,
+      "Shared Read Blocks": 0,
+      "Shared Dirtied Blocks": 0,
+      "Shared Written Blocks": 0,
+      "Local Hit Blocks": 0,
+      "Local Read Blocks": 0,
+      "Local Dirtied Blocks": 0,
+      "Local Written Blocks": 0,
+      "Temp Read Blocks": 0,
+      "Temp Written Blocks": 0,
+      "Plans": [
+        {
+          "Node Type": "Seq Scan",
+          "Parent Relationship": "Outer",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Relation Name": "records",
+          "Alias": "records",
+          "Startup Cost": 0.00,
+          "Total Cost": 1832.00,
+          "Plan Rows": 100000,
+          "Plan Width": 35,
+          "Actual Startup Time": 0.005,
+          "Actual Total Time": 0.006,
+          "Actual Rows": 100.00,
+          "Actual Loops": 1,
+          "Disabled": false,
+          "Shared Hit Blocks": 2,
+          "Shared Read Blocks": 0,
+          "Shared Dirtied Blocks": 0,
+          "Shared Written Blocks": 0,
+          "Local Hit Blocks": 0,
+          "Local Read Blocks": 0,
+          "Local Dirtied Blocks": 0,
+          "Local Written Blocks": 0,
+          "Temp Read Blocks": 0,
+          "Temp Written Blocks": 0
+        }
+      ]
+    },
+    "Planning": {
+      "Shared Hit Blocks": 8,
+      "Shared Read Blocks": 0,
+      "Shared Dirtied Blocks": 0,
+      "Shared Written Blocks": 0,
+      "Local Hit Blocks": 0,
+      "Local Read Blocks": 0,
+      "Local Dirtied Blocks": 0,
+      "Local Written Blocks": 0,
+      "Temp Read Blocks": 0,
+      "Temp Written Blocks": 0
+    },
+    "Planning Time": 0.042,
+    "Triggers": [],
+    "Execution Time": 0.020
+  }
+]
+-> Limit          est.rows=100      actual.rows=100
+  -> Seq Scan       est.rows=100000   actual.rows=100
+
+--- Query 2 — 1 duplicate `deleted_at IS NULL` clause(s) ---
+SQL: SELECT id, deleted_at FROM records WHERE deleted_at IS NULL LIMIT 100
+RAW statement sent:
+  EXPLAIN (ANALYZE, FORMAT JSON) SELECT id, deleted_at FROM records WHERE deleted_at IS NULL LIMIT 100
+RAW EXPLAIN response:
+[
+  {
+    "Plan": {
+      "Node Type": "Limit",
+      "Parallel Aware": false,
+      "Async Capable": false,
+      "Startup Cost": 0.00,
+      "Total Cost": 3.68,
+      "Plan Rows": 100,
+      "Plan Width": 35,
+      "Actual Startup Time": 0.003,
+      "Actual Total Time": 0.011,
+      "Actual Rows": 100.00,
+      "Actual Loops": 1,
+      "Disabled": false,
+      "Shared Hit Blocks": 3,
+      "Shared Read Blocks": 0,
+      "Shared Dirtied Blocks": 0,
+      "Shared Written Blocks": 0,
+      "Local Hit Blocks": 0,
+      "Local Read Blocks": 0,
+      "Local Dirtied Blocks": 0,
+      "Local Written Blocks": 0,
+      "Temp Read Blocks": 0,
+      "Temp Written Blocks": 0,
+      "Plans": [
+        {
+          "Node Type": "Seq Scan",
+          "Parent Relationship": "Outer",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Relation Name": "records",
+          "Alias": "records",
+          "Startup Cost": 0.00,
+          "Total Cost": 1832.00,
+          "Plan Rows": 49847,
+          "Plan Width": 35,
+          "Actual Startup Time": 0.002,
+          "Actual Total Time": 0.008,
+          "Actual Rows": 100.00,
+          "Actual Loops": 1,
+          "Disabled": false,
+          "Filter": "(deleted_at IS NULL)",
+          "Rows Removed by Filter": 99,
+          "Shared Hit Blocks": 3,
+          "Shared Read Blocks": 0,
+          "Shared Dirtied Blocks": 0,
+          "Shared Written Blocks": 0,
+          "Local Hit Blocks": 0,
+          "Local Read Blocks": 0,
+          "Local Dirtied Blocks": 0,
+          "Local Written Blocks": 0,
+          "Temp Read Blocks": 0,
+          "Temp Written Blocks": 0
+        }
+      ]
+    },
+    "Planning": {
+      "Shared Hit Blocks": 0,
+      "Shared Read Blocks": 0,
+      "Shared Dirtied Blocks": 0,
+      "Shared Written Blocks": 0,
+      "Local Hit Blocks": 0,
+      "Local Read Blocks": 0,
+      "Local Dirtied Blocks": 0,
+      "Local Written Blocks": 0,
+      "Temp Read Blocks": 0,
+      "Temp Written Blocks": 0
+    },
+    "Planning Time": 0.012,
+    "Triggers": [],
+    "Execution Time": 0.014
+  }
+]
+-> Limit          est.rows=100      actual.rows=100
+  -> Seq Scan       est.rows=49847    actual.rows=100
+
+--- Query 3 — 2 duplicate `deleted_at IS NULL` clause(s) ---
+SQL: SELECT id, deleted_at FROM records WHERE deleted_at IS NULL AND deleted_at IS NULL LIMIT 100
+RAW statement sent:
+  EXPLAIN (ANALYZE, FORMAT JSON) SELECT id, deleted_at FROM records WHERE deleted_at IS NULL AND deleted_at IS NULL LIMIT 100
+RAW EXPLAIN response:
+[
+  {
+    "Plan": {
+      "Node Type": "Limit",
+      "Parallel Aware": false,
+      "Async Capable": false,
+      "Startup Cost": 0.00,
+      "Total Cost": 7.37,
+      "Plan Rows": 100,
+      "Plan Width": 35,
+      "Actual Startup Time": 0.002,
+      "Actual Total Time": 0.011,
+      "Actual Rows": 100.00,
+      "Actual Loops": 1,
+      "Disabled": false,
+      "Shared Hit Blocks": 3,
+      "Shared Read Blocks": 0,
+      "Shared Dirtied Blocks": 0,
+      "Shared Written Blocks": 0,
+      "Local Hit Blocks": 0,
+      "Local Read Blocks": 0,
+      "Local Dirtied Blocks": 0,
+      "Local Written Blocks": 0,
+      "Temp Read Blocks": 0,
+      "Temp Written Blocks": 0,
+      "Plans": [
+        {
+          "Node Type": "Seq Scan",
+          "Parent Relationship": "Outer",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Relation Name": "records",
+          "Alias": "records",
+          "Startup Cost": 0.00,
+          "Total Cost": 1832.00,
+          "Plan Rows": 24847,
+          "Plan Width": 35,
+          "Actual Startup Time": 0.002,
+          "Actual Total Time": 0.007,
+          "Actual Rows": 100.00,
+          "Actual Loops": 1,
+          "Disabled": false,
+          "Filter": "((deleted_at IS NULL) AND (deleted_at IS NULL))",
+          "Rows Removed by Filter": 99,
+          "Shared Hit Blocks": 3,
+          "Shared Read Blocks": 0,
+          "Shared Dirtied Blocks": 0,
+          "Shared Written Blocks": 0,
+          "Local Hit Blocks": 0,
+          "Local Read Blocks": 0,
+          "Local Dirtied Blocks": 0,
+          "Local Written Blocks": 0,
+          "Temp Read Blocks": 0,
+          "Temp Written Blocks": 0
+        }
+      ]
+    },
+    "Planning": {
+      "Shared Hit Blocks": 0,
+      "Shared Read Blocks": 0,
+      "Shared Dirtied Blocks": 0,
+      "Shared Written Blocks": 0,
+      "Local Hit Blocks": 0,
+      "Local Read Blocks": 0,
+      "Local Dirtied Blocks": 0,
+      "Local Written Blocks": 0,
+      "Temp Read Blocks": 0,
+      "Temp Written Blocks": 0
+    },
+    "Planning Time": 0.010,
+    "Triggers": [],
+    "Execution Time": 0.015
+  }
+]
+-> Limit          est.rows=100      actual.rows=100
+  -> Seq Scan       est.rows=24847    actual.rows=100
+
+--- Query 4 — 3 duplicate `deleted_at IS NULL` clause(s) ---
+SQL: SELECT id, deleted_at FROM records WHERE deleted_at IS NULL AND deleted_at IS NULL AND deleted_at IS NULL LIMIT 100
+RAW statement sent:
+  EXPLAIN (ANALYZE, FORMAT JSON) SELECT id, deleted_at FROM records WHERE deleted_at IS NULL AND deleted_at IS NULL AND deleted_at IS NULL LIMIT 100
+RAW EXPLAIN response:
+[
+  {
+    "Plan": {
+      "Node Type": "Limit",
+      "Parallel Aware": false,
+      "Async Capable": false,
+      "Startup Cost": 0.00,
+      "Total Cost": 14.79,
+      "Plan Rows": 100,
+      "Plan Width": 35,
+      "Actual Startup Time": 0.002,
+      "Actual Total Time": 0.009,
+      "Actual Rows": 100.00,
+      "Actual Loops": 1,
+      "Disabled": false,
+      "Shared Hit Blocks": 3,
+      "Shared Read Blocks": 0,
+      "Shared Dirtied Blocks": 0,
+      "Shared Written Blocks": 0,
+      "Local Hit Blocks": 0,
+      "Local Read Blocks": 0,
+      "Local Dirtied Blocks": 0,
+      "Local Written Blocks": 0,
+      "Temp Read Blocks": 0,
+      "Temp Written Blocks": 0,
+      "Plans": [
+        {
+          "Node Type": "Seq Scan",
+          "Parent Relationship": "Outer",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Relation Name": "records",
+          "Alias": "records",
+          "Startup Cost": 0.00,
+          "Total Cost": 1832.00,
+          "Plan Rows": 12385,
+          "Plan Width": 35,
+          "Actual Startup Time": 0.002,
+          "Actual Total Time": 0.006,
+          "Actual Rows": 100.00,
+          "Actual Loops": 1,
+          "Disabled": false,
+          "Filter": "((deleted_at IS NULL) AND (deleted_at IS NULL) AND (deleted_at IS NULL))",
+          "Rows Removed by Filter": 99,
+          "Shared Hit Blocks": 3,
+          "Shared Read Blocks": 0,
+          "Shared Dirtied Blocks": 0,
+          "Shared Written Blocks": 0,
+          "Local Hit Blocks": 0,
+          "Local Read Blocks": 0,
+          "Local Dirtied Blocks": 0,
+          "Local Written Blocks": 0,
+          "Temp Read Blocks": 0,
+          "Temp Written Blocks": 0
+        }
+      ]
+    },
+    "Planning": {
+      "Shared Hit Blocks": 0,
+      "Shared Read Blocks": 0,
+      "Shared Dirtied Blocks": 0,
+      "Shared Written Blocks": 0,
+      "Local Hit Blocks": 0,
+      "Local Read Blocks": 0,
+      "Local Dirtied Blocks": 0,
+      "Local Written Blocks": 0,
+      "Temp Read Blocks": 0,
+      "Temp Written Blocks": 0
+    },
+    "Planning Time": 0.005,
+    "Triggers": [],
+    "Execution Time": 0.012
+  }
+]
+-> Limit          est.rows=100      actual.rows=100
+  -> Seq Scan       est.rows=12385    actual.rows=100
+
+--- Query 5 — 4 duplicate `deleted_at IS NULL` clause(s) ---
+SQL: SELECT id, deleted_at FROM records WHERE deleted_at IS NULL AND deleted_at IS NULL AND deleted_at IS NULL AND deleted_at IS NULL LIMIT 100
+RAW statement sent:
+  EXPLAIN (ANALYZE, FORMAT JSON) SELECT id, deleted_at FROM records WHERE deleted_at IS NULL AND deleted_at IS NULL AND deleted_at IS NULL AND deleted_at IS NULL LIMIT 100
+RAW EXPLAIN response:
+[
+  {
+    "Plan": {
+      "Node Type": "Limit",
+      "Parallel Aware": false,
+      "Async Capable": false,
+      "Startup Cost": 0.00,
+      "Total Cost": 29.67,
+      "Plan Rows": 100,
+      "Plan Width": 35,
+      "Actual Startup Time": 0.002,
+      "Actual Total Time": 0.009,
+      "Actual Rows": 100.00,
+      "Actual Loops": 1,
+      "Disabled": false,
+      "Shared Hit Blocks": 3,
+      "Shared Read Blocks": 0,
+      "Shared Dirtied Blocks": 0,
+      "Shared Written Blocks": 0,
+      "Local Hit Blocks": 0,
+      "Local Read Blocks": 0,
+      "Local Dirtied Blocks": 0,
+      "Local Written Blocks": 0,
+      "Temp Read Blocks": 0,
+      "Temp Written Blocks": 0,
+      "Plans": [
+        {
+          "Node Type": "Seq Scan",
+          "Parent Relationship": "Outer",
+          "Parallel Aware": false,
+          "Async Capable": false,
+          "Relation Name": "records",
+          "Alias": "records",
+          "Startup Cost": 0.00,
+          "Total Cost": 1832.00,
+          "Plan Rows": 6174,
+          "Plan Width": 35,
+          "Actual Startup Time": 0.001,
+          "Actual Total Time": 0.006,
+          "Actual Rows": 100.00,
+          "Actual Loops": 1,
+          "Disabled": false,
+          "Filter": "((deleted_at IS NULL) AND (deleted_at IS NULL) AND (deleted_at IS NULL) AND (deleted_at IS NULL))",
+          "Rows Removed by Filter": 99,
+          "Shared Hit Blocks": 3,
+          "Shared Read Blocks": 0,
+          "Shared Dirtied Blocks": 0,
+          "Shared Written Blocks": 0,
+          "Local Hit Blocks": 0,
+          "Local Read Blocks": 0,
+          "Local Dirtied Blocks": 0,
+          "Local Written Blocks": 0,
+          "Temp Read Blocks": 0,
+          "Temp Written Blocks": 0
+        }
+      ]
+    },
+    "Planning": {
+      "Shared Hit Blocks": 0,
+      "Shared Read Blocks": 0,
+      "Shared Dirtied Blocks": 0,
+      "Shared Written Blocks": 0,
+      "Local Hit Blocks": 0,
+      "Local Read Blocks": 0,
+      "Local Dirtied Blocks": 0,
+      "Local Written Blocks": 0,
+      "Temp Read Blocks": 0,
+      "Temp Written Blocks": 0
+    },
+    "Planning Time": 0.005,
+    "Triggers": [],
+    "Execution Time": 0.012
+  }
+]
+-> Limit          est.rows=100      actual.rows=100
+  -> Seq Scan       est.rows=6174     actual.rows=100
+
+=========================================================================
+ SUMMARY — scan-node estimated rows (the filter selectivity estimate)
+=========================================================================
+Query    IS NULL clauses  Estimated rows   Actual matched  
+1        0                100000           100             
+2        1                49847            100             
+3        2                24847            100             
+4        3                12385            100             
+5        4                6174             100             
+
