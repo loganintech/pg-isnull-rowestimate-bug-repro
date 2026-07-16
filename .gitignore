@@ -1,0 +1,5 @@
+# nix build symlink
+/result
+
+# go build output
+/pg-test
