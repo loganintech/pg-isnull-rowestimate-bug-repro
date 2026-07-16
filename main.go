@@ -171,8 +171,8 @@ type explainRoot struct {
 }
 
 // firstScan returns the deepest/first scan node, whose Plan Rows reflects the
-// full selectivity estimate for the WHERE clause (the Limit node above it caps
-// the top-level estimate at 100, which is not what we want to observe).
+// full selectivity estimate for the WHERE clause and whose Actual Rows is the
+// true number of matching rows.
 func firstScan(n planNode) *planNode {
 	if len(n.NodeType) >= 4 && n.NodeType[len(n.NodeType)-4:] == "Scan" {
 		return &n
@@ -234,7 +234,7 @@ func runExplainQueries(ctx context.Context, conn *pgx.Conn, rawOutput bool) erro
 				where += " AND deleted_at IS NULL"
 			}
 		}
-		query := fmt.Sprintf("SELECT id, deleted_at FROM records%s LIMIT 100", where)
+		query := fmt.Sprintf("SELECT id, deleted_at FROM records%s", where)
 		statement := "EXPLAIN (ANALYZE, FORMAT JSON) " + query
 
 		var raw []byte
@@ -268,9 +268,13 @@ func runExplainQueries(ctx context.Context, conn *pgx.Conn, rawOutput bool) erro
 	fmt.Println("=========================================================================")
 	fmt.Println(" SUMMARY — scan-node estimated rows (the filter selectivity estimate)")
 	fmt.Println("=========================================================================")
-	fmt.Printf("%-8s %-16s %-16s %-16s\n", "Query", "IS NULL clauses", "Estimated rows", "Actual matched")
+	fmt.Printf("%-8s %-16s %-16s %-16s %-20s\n", "Query", "IS NULL clauses", "Estimated rows", "Actual matched", "Underestimate scale")
 	for _, s := range summaries {
-		fmt.Printf("%-8d %-16d %-16.0f %-16.0f\n", s.q, s.clauses, s.scanEst, s.scanActual)
+		underestimate := "n/a"
+		if s.scanEst > 0 {
+			underestimate = fmt.Sprintf("%.1fx", s.scanActual/s.scanEst)
+		}
+		fmt.Printf("%-8d %-16d %-16.0f %-16.0f %-20s\n", s.q, s.clauses, s.scanEst, s.scanActual, underestimate)
 	}
 	fmt.Println()
 

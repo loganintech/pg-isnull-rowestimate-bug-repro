@@ -17,18 +17,22 @@ Postgres does **not** deduplicate identical predicates — each repeated
 `deleted_at IS NULL` is treated as independent, so the estimate roughly halves
 each time, even though all five queries match the same 50,000 rows.
 
-Measured on a sample run against PostgreSQL 18.4 (see `results.log`):
+Measured on a sample run against PostgreSQL 18.4 (see `results.log`). The
+queries run without a `LIMIT`, so `Actual matched` is the true count of matching
+rows — identical (50,000) for every filtered query, while the **estimate** keeps
+halving. `Underestimate scale` is `Actual matched ÷ Estimated rows`:
 
-| Query | `IS NULL` clauses | Estimated rows (scan node) | Actual matched* | Ratio vs. prev. |
-|------:|------------------:|---------------------------:|----------------:|----------------:|
-| 1 | 0 | 100000 | 100 | — |
-| 2 | 1 | 49847 | 100 | 0.50× |
-| 3 | 2 | 24847 | 100 | 0.50× |
-| 4 | 3 | 12385 | 100 | 0.50× |
-| 5 | 4 | 6174 | 100 | 0.50× |
+| Query | `IS NULL` clauses | Estimated rows (scan node) | Actual matched | Underestimate scale | Ratio vs. prev. |
+|------:|------------------:|---------------------------:|---------------:|--------------------:|----------------:|
+| 1 | 0 | 100000 | 100000 | 1.0× | — |
+| 2 | 1 | 50090 | 50000 | 1.0× | 0.50× |
+| 3 | 2 | 25090 | 50000 | 2.0× | 0.50× |
+| 4 | 3 | 12568 | 50000 | 4.0× | 0.50× |
+| 5 | 4 | 6295 | 50000 | 7.9× | 0.50× |
 
-\* `Actual matched` is capped at 100 because `LIMIT 100` stops the scan early; the
-true match count is 50,000 for every query.
+By Query 5, repeating a predicate that changes nothing makes the planner
+underestimate the result by ~8×. (Exact estimates shift slightly between runs
+since `ANALYZE` samples the table.)
 
 <details>
 <summary>Full run output (<code>results.log</code>)</summary>
@@ -40,34 +44,34 @@ distinguishing lines from each query's `Seq Scan` node:
 ```
 Query 1 — WHERE (none)
   Filter:    (none)
-  Plan Rows: 100000
+  Plan Rows: 100000   Actual Rows: 100000
 
 Query 2 — WHERE deleted_at IS NULL
   Filter:    (deleted_at IS NULL)
-  Plan Rows: 49847
+  Plan Rows: 50090    Actual Rows: 50000
 
 Query 3 — WHERE deleted_at IS NULL AND deleted_at IS NULL
   Filter:    ((deleted_at IS NULL) AND (deleted_at IS NULL))
-  Plan Rows: 24847
+  Plan Rows: 25090    Actual Rows: 50000
 
 Query 4 — WHERE deleted_at IS NULL AND deleted_at IS NULL AND deleted_at IS NULL
   Filter:    ((deleted_at IS NULL) AND (deleted_at IS NULL) AND (deleted_at IS NULL))
-  Plan Rows: 12385
+  Plan Rows: 12568    Actual Rows: 50000
 
 Query 5 — WHERE deleted_at IS NULL AND deleted_at IS NULL AND deleted_at IS NULL AND deleted_at IS NULL
   Filter:    ((deleted_at IS NULL) AND (deleted_at IS NULL) AND (deleted_at IS NULL) AND (deleted_at IS NULL))
-  Plan Rows: 6174
+  Plan Rows: 6295     Actual Rows: 50000
 ```
 
 Program summary table:
 
 ```
-Query    IS NULL clauses  Estimated rows   Actual matched
-1        0                100000           100
-2        1                49847            100
-3        2                24847            100
-4        3                12385            100
-5        4                6174             100
+Query    IS NULL clauses  Estimated rows   Actual matched   Underestimate scale
+1        0                100000           100000           1.0x
+2        1                50090            50000            1.0x
+3        2                25090            50000            2.0x
+4        3                12568            50000            4.0x
+5        4                6295             50000            7.9x
 ```
 
 </details>
@@ -109,9 +113,9 @@ go run .
 
 ## Notes
 
-- The per-query `actual.rows=100` reflects the `LIMIT 100` stopping the scan
-  early — **not** the true match count (which is 50,000 for every query). The
-  interesting number is the **scan-node estimate**, which is what the summary
-  table reports.
+- The queries run without a `LIMIT`, so each `Seq Scan` reports both the
+  planner's **estimate** (`Plan Rows`) and the **true** number of matching rows
+  (`Actual Rows`). The summary table reports the scan-node estimate against that
+  actual.
 - The container listens on host port `55432`; change `hostPort` in `main.go` if
   that clashes.
